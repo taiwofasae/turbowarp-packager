@@ -97,17 +97,12 @@
       <pre id="error-message"></pre>
     </div>
 
-    <!--
-      packager-api.js is built by webpack from src/packager/web/export-api.js.
-      It sets up window.PackagerAPI = { Packager, loadProject }.
-      In dev mode (npm start) it is served at js/packager-api.js.
-      It is built as a single self-contained chunk (no splitChunks for this entry).
-    -->
     <script src="js/packager-api.js"></script>
 
     <script>
       (function () {
-        // ── Helpers ──────────────────────────────────────────────────────────
+
+        // Helpers 
 
         var progressBar   = document.getElementById('progress-bar');
         var statusText    = document.getElementById('status-text');
@@ -130,7 +125,7 @@
           errorMessage.textContent    = String(err && err.stack ? err.stack : err);
         }
 
-        // ── Read project_url from query string ───────────────────────────────
+        // Read project_url from query string
 
         var params     = new URLSearchParams(location.search);
         var projectUrl = params.get('project_url');
@@ -165,7 +160,7 @@
           return;
         }
 
-        // ── Kick off the full pipeline ────────────────────────────────────────
+        // Kick off the full pipeline
 
         console.log('[generate_content] project_url:', projectUrl);
         console.log('[generate_content] PackagerAPI available:', Object.keys(window.PackagerAPI));
@@ -189,13 +184,10 @@
         setStatus('Downloading project...');
         setProgress(0.02);
 
-        // Step 4: load the project from URL
         loadProject.fromURL(projectUrl, progressCallback)
           .then(function (result) {
             return result.promise;
           })
-
-          // Step 5: package it and replace the page
           .then(function (project) {
             console.log('[generate_content] project loaded:', project.type, project.analysis);
             setProgress(0.98);
@@ -213,16 +205,11 @@
               setProgress(0.98 + e.detail.progress * 0.02);
               setStatus('Loading runtime... ' + Math.round(e.detail.progress * 100) + '%');
             });
-
-            // Run packager and render — no Promise wrapper needed
             packager.package()
               .then(function (result) {
                 console.log('[generate_content] rendering HTML, length:', result.data.length);
                 setProgress(1);
                 setStatus('Done.');
-
-                // Create a blob URL from the packaged HTML and navigate to it.
-                // This is more reliable than document.write() across all browsers.
                 var blob = new Blob([result.data], {type: 'text/html'});
                 var url = URL.createObjectURL(blob);
                 location.replace(url);
