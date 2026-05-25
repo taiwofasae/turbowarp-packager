@@ -167,15 +167,56 @@
           return;
         }
 
-        // ── All checks passed — log and show ready state ─────────────────────
+        // ── All checks passed — kick off the async pipeline ─────────────────
 
         console.log('[generate_content] project_url:', projectUrl);
         console.log('[generate_content] PackagerAPI available:', Object.keys(window.PackagerAPI));
 
-        setStatus('Ready to load: ' + projectUrl);
-        setProgress(0.05);
+        var loadProject = window.PackagerAPI.loadProject;
 
-        // Steps 4 and 5 will replace this comment with the actual load + package calls.
+        // Progress comes in as (type, a, b):
+        //   type='fetch'   → a is 0-1 fraction of the raw .sb3 download
+        //   type='assets'  → a=loaded count, b=total count
+        //   type='compress'→ a is 0-1 fraction of zip compression
+        function progressCallback(type, a, b) {
+          if (type === 'fetch') {
+            // Fetching the .sb3 file: map to 0–40% of the bar
+            setProgress(a * 0.4);
+            setStatus('Downloading project... ' + Math.round(a * 100) + '%');
+          } else if (type === 'assets') {
+            // Extracting and loading assets: map to 40–95%
+            var fraction = b > 0 ? (a / b) : 0;
+            setProgress(0.4 + fraction * 0.55);
+            setStatus('Loading assets... ' + a + ' / ' + b);
+          } else if (type === 'compress') {
+            // Compressing: map to 95–99%
+            setProgress(0.95 + a * 0.04);
+            setStatus('Compressing...');
+          }
+        }
+
+        setStatus('Downloading project...');
+        setProgress(0.02);
+
+        loadProject.fromURL(projectUrl, progressCallback)
+          .then(function (result) {
+            // result = { promise, terminate }
+            // result.promise resolves to the project object once assets are loaded
+            return result.promise;
+          })
+          .then(function (project) {
+            // project = { arrayBuffer, type, analysis }
+            // analysis tells us about cloud variables, music extension, etc.
+            console.log('[generate_content] project loaded:', project.type, project.analysis);
+            setProgress(0.98);
+            setStatus('Project loaded successfully.');
+
+            // Step 5 will use `project` here to run the packager and render the HTML.
+            // For now we just confirm loading completed without errors.
+          })
+          .catch(function (err) {
+            showError(err);
+          });
 
       })();
     </script>
