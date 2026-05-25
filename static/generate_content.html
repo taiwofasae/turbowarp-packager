@@ -210,7 +210,8 @@
 
                 packager.project = project;
                 packager.options.target = 'html';
-                packager.options.autoplay = true;
+                packager.options.autoplay = false; // browser blocks AudioContext without user gesture
+                packager.options.controls.greenFlag.enabled = true; // show green flag button
 
                 packager.addEventListener('large-asset-fetch', function (e) {
                   setProgress(0.98 + e.detail.progress * 0.02);
@@ -230,7 +231,7 @@
             setProgress(1);
             setStatus('Done.');
             var html = new TextDecoder().decode(result.data);
-            document.open();
+            document.open('text/html', 'replace');
             document.write(html);
             document.close();
           })
