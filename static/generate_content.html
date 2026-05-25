@@ -201,39 +201,35 @@
             setProgress(0.98);
             setStatus('Packaging... (this may take a moment)');
 
-            // Wrap in a Promise so we can yield one frame before the
-            // CPU-intensive base85 encoding blocks the main thread.
-            return new Promise(function (resolve, reject) {
-              setTimeout(function () {
-                var Packager = window.PackagerAPI.Packager;
-                var packager = new Packager();
+            var Packager = window.PackagerAPI.Packager;
+            var packager = new Packager();
 
-                packager.project = project;
-                packager.options.target = 'html';
-                packager.options.autoplay = false; // browser blocks AudioContext without user gesture
-                packager.options.controls.greenFlag.enabled = true; // show green flag button
+            packager.project = project;
+            packager.options.target = 'html';
+            packager.options.autoplay = false;
+            packager.options.controls.greenFlag.enabled = true;
 
-                packager.addEventListener('large-asset-fetch', function (e) {
-                  setProgress(0.98 + e.detail.progress * 0.02);
-                  setStatus('Loading runtime... ' + Math.round(e.detail.progress * 100) + '%');
-                  console.log('[generate_content] large-asset-fetch:', e.detail.asset, e.detail.progress);
-                });
-
-                packager.package()
-                  .then(resolve)
-                  .catch(reject);
-              }, 50);
+            packager.addEventListener('large-asset-fetch', function (e) {
+              setProgress(0.98 + e.detail.progress * 0.02);
+              setStatus('Loading runtime... ' + Math.round(e.detail.progress * 100) + '%');
             });
-          })
 
-          // Render the packaged HTML in-place
-          .then(function (result) {
-            setProgress(1);
-            setStatus('Done.');
-            var html = new TextDecoder().decode(result.data);
-            document.open('text/html', 'replace');
-            document.write(html);
-            document.close();
+            // Run packager and render — no Promise wrapper needed
+            packager.package()
+              .then(function (result) {
+                console.log('[generate_content] rendering HTML, length:', result.data.length);
+                setProgress(1);
+                setStatus('Done.');
+
+                // Create a blob URL from the packaged HTML and navigate to it.
+                // This is more reliable than document.write() across all browsers.
+                var blob = new Blob([result.data], {type: 'text/html'});
+                var url = URL.createObjectURL(blob);
+                location.replace(url);
+              })
+              .catch(function (err) {
+                showError(err);
+              });
           })
 
           .catch(function (err) {
