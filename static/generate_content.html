@@ -109,11 +109,11 @@
       (function () {
         // ── Helpers ──────────────────────────────────────────────────────────
 
-        var progressBar  = document.getElementById('progress-bar');
-        var statusText   = document.getElementById('status-text');
+        var progressBar   = document.getElementById('progress-bar');
+        var statusText    = document.getElementById('status-text');
         var loadingScreen = document.getElementById('loading-screen');
-        var errorScreen  = document.getElementById('error-screen');
-        var errorMessage = document.getElementById('error-message');
+        var errorScreen   = document.getElementById('error-screen');
+        var errorMessage  = document.getElementById('error-message');
 
         function setProgress(fraction) {
           progressBar.style.width = Math.round(Math.min(1, Math.max(0, fraction)) * 100) + '%';
@@ -141,10 +141,9 @@
             'Expected format:\n' +
             '  generate_content.html?project_url=https://example.com/project.sb3'
           );
-          return; // stop here — nothing more to do in this step
+          return;
         }
 
-        // Validate it looks like an http/https URL
         try {
           var parsed = new URL(projectUrl);
           if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
@@ -155,8 +154,7 @@
           return;
         }
 
-        // ── Confirm PackagerAPI is available ─────────────────────────────────
-        // (packager-api.js must have loaded before this inline script runs)
+        // Confirm PackagerAPI is available 
 
         if (typeof window.PackagerAPI === 'undefined') {
           showError(
@@ -167,29 +165,22 @@
           return;
         }
 
-        // ── All checks passed — kick off the async pipeline ─────────────────
+        // ── Kick off the full pipeline ────────────────────────────────────────
 
         console.log('[generate_content] project_url:', projectUrl);
         console.log('[generate_content] PackagerAPI available:', Object.keys(window.PackagerAPI));
 
         var loadProject = window.PackagerAPI.loadProject;
 
-        // Progress comes in as (type, a, b):
-        //   type='fetch'   → a is 0-1 fraction of the raw .sb3 download
-        //   type='assets'  → a=loaded count, b=total count
-        //   type='compress'→ a is 0-1 fraction of zip compression
         function progressCallback(type, a, b) {
           if (type === 'fetch') {
-            // Fetching the .sb3 file: map to 0–40% of the bar
             setProgress(a * 0.4);
             setStatus('Downloading project... ' + Math.round(a * 100) + '%');
           } else if (type === 'assets') {
-            // Extracting and loading assets: map to 40–95%
             var fraction = b > 0 ? (a / b) : 0;
             setProgress(0.4 + fraction * 0.55);
             setStatus('Loading assets... ' + a + ' / ' + b);
           } else if (type === 'compress') {
-            // Compressing: map to 95–99%
             setProgress(0.95 + a * 0.04);
             setStatus('Compressing...');
           }
@@ -198,50 +189,52 @@
         setStatus('Downloading project...');
         setProgress(0.02);
 
+        // Step 4: load the project from URL
         loadProject.fromURL(projectUrl, progressCallback)
           .then(function (result) {
-            // result = { promise, terminate }
-            // result.promise resolves to the project object once assets are loaded
             return result.promise;
           })
+
+          // Step 5: package it and replace the page
           .then(function (project) {
-            // project = { arrayBuffer, type, analysis }
             console.log('[generate_content] project loaded:', project.type, project.analysis);
             setProgress(0.98);
-            setStatus('Packaging...');
+            setStatus('Packaging... (this may take a moment)');
 
-            // ── Step 5: run the packager and replace the page ─────────────
+            // Wrap in a Promise so we can yield one frame before the
+            // CPU-intensive base85 encoding blocks the main thread.
+            return new Promise(function (resolve, reject) {
+              setTimeout(function () {
+                var Packager = window.PackagerAPI.Packager;
+                var packager = new Packager();
 
-            var Packager = window.PackagerAPI.Packager;
-            var packager = new Packager();
+                packager.project = project;
+                packager.options.target = 'html';
+                packager.options.autoplay = true;
 
-            // Use all defaults — target html, autoplay on, 480x360 stage.
-            packager.project = project;
-            packager.options.target = 'html';
-            packager.options.autoplay = true;
+                packager.addEventListener('large-asset-fetch', function (e) {
+                  setProgress(0.98 + e.detail.progress * 0.02);
+                  setStatus('Loading runtime... ' + Math.round(e.detail.progress * 100) + '%');
+                  console.log('[generate_content] large-asset-fetch:', e.detail.asset, e.detail.progress);
+                });
 
-            // Forward packager large-asset fetch progress into 98-100% of bar
-            packager.addEventListener('large-asset-fetch', function (e) {
-              setProgress(0.98 + e.detail.progress * 0.02);
-              setStatus('Loading runtime...');
+                packager.package()
+                  .then(resolve)
+                  .catch(reject);
+              }, 50);
             });
-
-            return packager.package();
           })
+
+          // Render the packaged HTML in-place
           .then(function (result) {
-            // result.data is a Uint8Array of the complete self-contained HTML.
-            // Decode it and replace the entire page in-place.
             setProgress(1);
             setStatus('Done.');
-
             var html = new TextDecoder().decode(result.data);
-
-            // document.open/write/close replaces the page at the same origin
-            // without a navigation — the URL stays as generate_content.html?...
             document.open();
             document.write(html);
             document.close();
           })
+
           .catch(function (err) {
             showError(err);
           });
