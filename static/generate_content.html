@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <!-- Loosen CSP so the packaged project's inline scripts can run after page replacement -->
+    <meta http-equiv="Content-Security-Policy" content="default-src * 'self' 'unsafe-inline' 'unsafe-eval' data: blob:">
+    <title>Loading project...</title>
+    <style>
+      *, *::before, *::after {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        padding: 0;
+        background: #111;
+        color: #fff;
+        font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 100vh;
+      }
+
+      #loading-screen {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 20px;
+        text-align: center;
+        padding: 32px;
+      }
+
+      #status-text {
+        font-size: 18px;
+        opacity: 0.85;
+      }
+
+      .progress-bar-outer {
+        width: 260px;
+        height: 10px;
+        border: 1px solid rgba(255, 255, 255, 0.5);
+        border-radius: 5px;
+        overflow: hidden;
+      }
+
+      .progress-bar-inner {
+        height: 100%;
+        width: 0%;
+        background: #fff;
+        border-radius: 5px;
+        transition: width 0.1s ease;
+      }
+
+      #error-screen {
+        display: none;
+        flex-direction: column;
+        align-items: center;
+        gap: 16px;
+        text-align: center;
+        padding: 32px;
+        max-width: 600px;
+      }
+
+      #error-screen h1 {
+        font-size: 24px;
+        font-weight: normal;
+        margin: 0;
+        color: #ff6b6b;
+      }
+
+      #error-message {
+        font-family: monospace;
+        font-size: 14px;
+        background: rgba(255, 255, 255, 0.08);
+        padding: 12px 16px;
+        border-radius: 6px;
+        white-space: pre-wrap;
+        word-break: break-word;
+        max-width: 100%;
+        text-align: left;
+      }
+    </style>
+  </head>
+  <body>
+
+    <div id="loading-screen">
+      <div id="status-text">Loading project...</div>
+      <div class="progress-bar-outer">
+        <div class="progress-bar-inner" id="progress-bar"></div>
+      </div>
+    </div>
+
+    <div id="error-screen">
+      <h1>Error</h1>
+      <pre id="error-message"></pre>
+    </div>
+
+    <!--
+      packager-api.js is built by webpack from src/packager/web/export-api.js.
+      It sets up window.PackagerAPI = { Packager, loadProject }.
+      In production the filename includes a content hash; for dev it is js/packager-api.js.
+    -->
+    <script src="js/packager-api.js"></script>
+
+    <script>
+      (function () {
+        // ── Helpers ──────────────────────────────────────────────────────────
+
+        var progressBar  = document.getElementById('progress-bar');
+        var statusText   = document.getElementById('status-text');
+        var loadingScreen = document.getElementById('loading-screen');
+        var errorScreen  = document.getElementById('error-screen');
+        var errorMessage = document.getElementById('error-message');
+
+        function setProgress(fraction) {
+          progressBar.style.width = Math.round(Math.min(1, Math.max(0, fraction)) * 100) + '%';
+        }
+
+        function setStatus(text) {
+          statusText.textContent = text;
+        }
+
+        function showError(err) {
+          console.error(err);
+          loadingScreen.style.display = 'none';
+          errorScreen.style.display   = 'flex';
+          errorMessage.textContent    = String(err && err.stack ? err.stack : err);
+        }
+
+        // ── Read project_url from query string ───────────────────────────────
+
+        var params     = new URLSearchParams(location.search);
+        var projectUrl = params.get('project_url');
+
+        if (!projectUrl) {
+          showError(
+            'No project_url parameter found in the URL.\n\n' +
+            'Expected format:\n' +
+            '  generate_content.html?project_url=https://example.com/project.sb3'
+          );
+          return; // stop here — nothing more to do in this step
+        }
+
+        // Validate it looks like an http/https URL
+        try {
+          var parsed = new URL(projectUrl);
+          if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+            throw new Error('URL must use http: or https: protocol');
+          }
+        } catch (e) {
+          showError('Invalid project_url: ' + projectUrl + '\n\n' + e);
+          return;
+        }
+
+        // ── Confirm PackagerAPI is available ─────────────────────────────────
+        // (packager-api.js must have loaded before this inline script runs)
+
+        if (typeof window.PackagerAPI === 'undefined') {
+          showError(
+            'PackagerAPI is not defined.\n\n' +
+            'Make sure js/packager-api.js was built and is being served correctly.\n' +
+            'Run `npm start` and check the browser console for build errors.'
+          );
+          return;
+        }
+
+        // ── All checks passed — log and show ready state ─────────────────────
+
+        console.log('[generate_content] project_url:', projectUrl);
+        console.log('[generate_content] PackagerAPI available:', Object.keys(window.PackagerAPI));
+
+        setStatus('Ready to load: ' + projectUrl);
+        setProgress(0.05);
+
+        // Steps 4 and 5 will replace this comment with the actual load + package calls.
+
+      })();
+    </script>
+
+  </body>
+</html>
