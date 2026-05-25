@@ -136,7 +136,8 @@ const makeWebsite = () => ({
     path: dist
   },
   entry: {
-    p4: './src/p4/index.js'
+    p4: './src/p4/index.js',
+    'packager-api': './src/packager/web/export-api.js'
   },
   resolve: {
     alias: {
