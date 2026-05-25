@@ -148,7 +148,11 @@ const makeWebsite = () => ({
   },
   optimization: {
     splitChunks: {
-      chunks: 'all',
+      chunks (chunk) {
+        // Don't split packager-api — it must be a single self-contained file
+        // so generate_content.html can load it with one <script> tag.
+        return chunk.name !== 'packager-api';
+      },
       minChunks: 2
     }
   },

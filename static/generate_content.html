@@ -100,7 +100,8 @@
     <!--
       packager-api.js is built by webpack from src/packager/web/export-api.js.
       It sets up window.PackagerAPI = { Packager, loadProject }.
-      In production the filename includes a content hash; for dev it is js/packager-api.js.
+      In dev mode (npm start) it is served at js/packager-api.js.
+      It is built as a single self-contained chunk (no splitChunks for this entry).
     -->
     <script src="js/packager-api.js"></script>
 
