@@ -206,13 +206,41 @@
           })
           .then(function (project) {
             // project = { arrayBuffer, type, analysis }
-            // analysis tells us about cloud variables, music extension, etc.
             console.log('[generate_content] project loaded:', project.type, project.analysis);
             setProgress(0.98);
-            setStatus('Project loaded successfully.');
+            setStatus('Packaging...');
 
-            // Step 5 will use `project` here to run the packager and render the HTML.
-            // For now we just confirm loading completed without errors.
+            // ── Step 5: run the packager and replace the page ─────────────
+
+            var Packager = window.PackagerAPI.Packager;
+            var packager = new Packager();
+
+            // Use all defaults — target html, autoplay on, 480x360 stage.
+            packager.project = project;
+            packager.options.target = 'html';
+            packager.options.autoplay = true;
+
+            // Forward packager large-asset fetch progress into 98-100% of bar
+            packager.addEventListener('large-asset-fetch', function (e) {
+              setProgress(0.98 + e.detail.progress * 0.02);
+              setStatus('Loading runtime...');
+            });
+
+            return packager.package();
+          })
+          .then(function (result) {
+            // result.data is a Uint8Array of the complete self-contained HTML.
+            // Decode it and replace the entire page in-place.
+            setProgress(1);
+            setStatus('Done.');
+
+            var html = new TextDecoder().decode(result.data);
+
+            // document.open/write/close replaces the page at the same origin
+            // without a navigation — the URL stays as generate_content.html?...
+            document.open();
+            document.write(html);
+            document.close();
           })
           .catch(function (err) {
             showError(err);
