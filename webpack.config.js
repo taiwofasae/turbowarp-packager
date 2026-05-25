@@ -204,7 +204,7 @@ const makeWebsite = () => ({
     overlay: true,
     inline: false,
     host: '0.0.0.0',
-    port: 8947
+    port: 8000
   },
 });
 
