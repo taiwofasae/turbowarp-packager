@@ -136,7 +136,8 @@ const makeWebsite = () => ({
     path: dist
   },
   entry: {
-    p4: './src/p4/index.js'
+    p4: './src/p4/index.js',
+    'packager-render-html': './src/packager/web/export-render-html.js'
   },
   resolve: {
     alias: {
@@ -147,7 +148,11 @@ const makeWebsite = () => ({
   },
   optimization: {
     splitChunks: {
-      chunks: 'all',
+      chunks (chunk) {
+        // Don't split packager-render-html — it must be a single self-contained file
+        // so packager_render.html can load it with one <script> tag.
+        return chunk.name !== 'packager-render-html';
+      },
       minChunks: 2
     }
   },
@@ -188,6 +193,11 @@ const makeWebsite = () => ({
       filename: 'index.html',
       template: './src/p4/template.ejs',
       chunks: ['p4']
+    }),
+    new HtmlWebpackPlugin({
+      filename: 'packager_render.html',
+      template: './src/packager-render-html/template.ejs',
+      chunks: ['packager-render-html'],
     }),
     new GenerateServiceWorkerPlugin(),
     ...(isStandalone ? [new EagerDynamicImportPlugin()] : []),
