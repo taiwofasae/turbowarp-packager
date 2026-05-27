@@ -137,7 +137,7 @@ const makeWebsite = () => ({
   },
   entry: {
     p4: './src/p4/index.js',
-    'packager-api': './src/packager/web/export-api.js'
+    'packager-render-html': './src/packager/web/export-api.js'
   },
   resolve: {
     alias: {
@@ -149,9 +149,9 @@ const makeWebsite = () => ({
   optimization: {
     splitChunks: {
       chunks (chunk) {
-        // Don't split packager-api — it must be a single self-contained file
-        // so generate_content.html can load it with one <script> tag.
-        return chunk.name !== 'packager-api';
+        // Don't split packager-render-html — it must be a single self-contained file
+        // so packager_render.html can load it with one <script> tag.
+        return chunk.name !== 'packager-render-html';
       },
       minChunks: 2
     }
@@ -204,7 +204,7 @@ const makeWebsite = () => ({
     overlay: true,
     inline: false,
     host: '0.0.0.0',
-    port: 8000
+    port: 8947
   },
 });
 

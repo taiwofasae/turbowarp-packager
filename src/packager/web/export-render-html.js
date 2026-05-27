@@ -10,7 +10,7 @@ import loadProject from '../load-project';
 // Set up the web adapter (handles caching, icon loading, fetch via XHR)
 setAdapter(new WebAdapter());
 
-window.PackagerAPI = {
+window.PackagerRenderHtml = {
    // The Packager class. Instantiate, set .project and .options, then call .package().
    // Returns { data: Uint8Array, type: string, filename: string }
   Packager,
